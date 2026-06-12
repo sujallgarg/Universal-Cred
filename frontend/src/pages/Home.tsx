@@ -57,7 +57,7 @@ const MODELS_LIST = [
   { id: "eleven-labs-v2", provider: "ElevenLabs", name: "ElevenLabs (Voice)", inputCost: 2.0, outputCost: 2.0, unit: "Sec", color: "text-pink-700 bg-pink-100/60 border-pink-300" }
 ];
 
-const API_BASE_URL = "http://localhost:5001";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 const TEST_USER_ID = 98765;
 
 export default function Home() {
@@ -82,6 +82,22 @@ export default function Home() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+
+  // --- Agent API Keys States ---
+  const [apiKeys, setApiKeys] = useState([
+    { id: 1, name: "Production Gateway Agent", key: `ch_live_key_98765_p7a89`, created: "2026-06-11", status: "active" },
+    { id: 2, name: "Local Development Sandbox", key: `ch_dev_key_98765_s4b21`, created: "2026-06-12", status: "active" }
+  ]);
+  const [showNewKeyModal, setShowNewKeyModal] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
+  const [selectedApiKey, setSelectedApiKey] = useState<string>("default");
+
+  // --- Provider Vault States ---
+  const [vaultOpenAI, setVaultOpenAI] = useState(localStorage.getItem("vault_openai") || "");
+  const [vaultAnthropic, setVaultAnthropic] = useState(localStorage.getItem("vault_anthropic") || "");
+  const [openaiConnected, setOpenaiConnected] = useState(!!localStorage.getItem("vault_openai"));
+  const [anthropicConnected, setAnthropicConnected] = useState(!!localStorage.getItem("vault_anthropic"));
 
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -147,14 +163,23 @@ export default function Home() {
 
     // Output immediate console telemetry traces
     setSystemLogs(prev => [...prev, { time: "0.0ms", type: "system", msg: "📡 [HTTP Ingress] API request received at POST /v1/chat/completions" }]);
-    setSystemLogs(prev => [...prev, { time: "0.4ms", type: "redis", msg: `🧠 [Redis Guardrail] Checking credit balance... key: [wallet:${TEST_USER_ID}:balance]` }]);
+    
+    if (selectedApiKey === "default") {
+      setSystemLogs(prev => [...prev, { time: "0.4ms", type: "redis", msg: `🧠 [Redis Guardrail] Checking credit balance... key: [wallet:${TEST_USER_ID}:balance]` }]);
+    } else {
+      const visiblePrefix = selectedApiKey.substring(0, 15);
+      const visibleSuffix = selectedApiKey.substring(selectedApiKey.length - 5);
+      const maskedKey = `${visiblePrefix}...${visibleSuffix}`;
+      setSystemLogs(prev => [...prev, { time: "0.4ms", type: "redis", msg: `🧠 [Redis Guardrail] Checking key authorization: [${maskedKey}]` }]);
+    }
 
     try {
+      const targetUserIdHeader = selectedApiKey === "default" ? String(TEST_USER_ID) : selectedApiKey;
       const response = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-user-id": String(TEST_USER_ID)
+          "x-user-id": targetUserIdHeader
         },
         body: JSON.stringify({
           model: selectedModel.id,
@@ -231,6 +256,9 @@ export default function Home() {
                 } else {
                   if (parsed.choices && parsed.choices[0]?.delta?.content) {
                     accumulatedText += parsed.choices[0].delta.content;
+                    setStreamText(accumulatedText);
+                  } else if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                    accumulatedText += parsed.delta.text;
                     setStreamText(accumulatedText);
                   }
                 }
@@ -375,6 +403,7 @@ response = client.chat.completions.create(
         <nav className="hidden lg:flex items-center gap-6 text-[10px] font-mono font-bold text-slate-500">
           <a href="#playground" className="hover:text-[#121118] transition-colors">// Sandbox</a>
           <a href="#how-it-works" className="hover:text-[#121118] transition-colors">// Architecture</a>
+          <a href="#agent-keys" className="hover:text-[#121118] transition-colors">// Credentials</a>
           <a href="#cost-estimator" className="hover:text-[#121118] transition-colors">// Cost Calculator</a>
           <a href="#about" className="hover:text-[#121118] transition-colors">// About</a>
           <a href="#faq" className="hover:text-[#121118] transition-colors">// F.A.Q</a>
@@ -551,6 +580,37 @@ response = client.chat.completions.create(
                 );
               })}
             </div>
+          </div>
+
+          {/* Authorize Compute As Selector */}
+          <div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wide text-slate-500 block mb-2">// 1.5. AUTHORIZE COMPUTE AS</span>
+            <select
+              value={selectedApiKey}
+              onChange={(e) => setSelectedApiKey(e.target.value)}
+              disabled={isStreaming}
+              className="w-full bg-[#FBFBFA] border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-[#121118] focus:outline-none focus:border-indigo-600 transition-all font-mono disabled:opacity-50 appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>")`,
+                backgroundPosition: 'right 12px center',
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: '16px'
+              }}
+            >
+              <option value="default">Default Account (UID: {TEST_USER_ID})</option>
+              {apiKeys
+                .filter((k) => k.status === "active")
+                .map((k) => {
+                  const visiblePrefix = k.key.substring(0, 15);
+                  const visibleSuffix = k.key.substring(k.key.length - 5);
+                  const maskedKey = `${visiblePrefix}...${visibleSuffix}`;
+                  return (
+                    <option key={k.id} value={k.key}>
+                      {k.name} ({maskedKey})
+                    </option>
+                  );
+                })}
+            </select>
           </div>
 
           {/* User Prompt Text Area */}
@@ -742,6 +802,234 @@ response = client.chat.completions.create(
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* SECTION 1.5: AGENT API KEYS MANAGER */}
+      <section id="agent-keys" className="w-full max-w-[90%] mx-auto py-16 border-t border-slate-200 relative z-20">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-mono text-indigo-600 font-bold uppercase tracking-wider">// AGENT GATEWAY CREDENTIALS</span>
+            <h2 className="text-3xl font-extrabold tracking-tight uppercase text-[#121118]">
+              AGENT API INTEGRATIONS
+            </h2>
+            <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
+              Create and manage authentication credentials for remote software agents, pipelines, and frameworks to connect to your unified settlement core.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowNewKeyModal(true)}
+            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow cursor-pointer font-mono"
+          >
+            + CREATE NEW API KEY
+          </button>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm overflow-x-auto">
+          <table className="w-full min-w-[600px] text-left border-collapse font-mono text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase pb-3">
+                <th className="pb-3 pr-4 font-bold">// KEY NAME</th>
+                <th className="pb-3 pr-4 font-bold">// SECRET API KEY</th>
+                <th className="pb-3 pr-4 font-bold">// DATE CREATED</th>
+                <th className="pb-3 pr-4 font-bold">// STATUS</th>
+                <th className="pb-3 text-right font-bold">// ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {apiKeys.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400 italic">
+                    No active agent credentials found. Generate a key above to start connecting workflows.
+                  </td>
+                </tr>
+              ) : (
+                apiKeys.map((key) => {
+                  const isRevoked = key.status === "revoked";
+                  const visiblePrefix = key.key.substring(0, 15);
+                  const visibleSuffix = key.key.substring(key.key.length - 5);
+                  const maskedKey = `${visiblePrefix}...${visibleSuffix}`;
+                  
+                  return (
+                    <tr key={key.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 pr-4 font-bold text-[#121118]">{key.name}</td>
+                      <td className="py-4 pr-4 text-slate-600 font-mono">
+                        <div className="flex items-center gap-2">
+                          <code className="bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded font-mono text-[11px] font-bold">
+                            {maskedKey}
+                          </code>
+                          {!isRevoked && (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(key.key);
+                                alert("API Key copied to clipboard!");
+                              }}
+                              className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer text-[10px]"
+                              title="Copy full key string"
+                            >
+                              [COPY]
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 pr-4 text-slate-500">{key.created}</td>
+                      <td className="py-4 pr-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isRevoked 
+                          ? "bg-rose-50 border-rose-200 text-rose-700" 
+                          : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${isRevoked ? "bg-rose-500" : "bg-emerald-500"}`} />
+                          {isRevoked ? "revoked" : "active"}
+                        </span>
+                      </td>
+                      <td className="py-4 text-right">
+                        {!isRevoked ? (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to revoke keys for: ${key.name}? Remote agents will immediately lose balance authorization.`)) {
+                                setApiKeys(prev => prev.map(k => k.id === key.id ? { ...k, status: "revoked" } : k));
+                                if (selectedApiKey === key.key) {
+                                  setSelectedApiKey("default");
+                                }
+                              }
+                            }}
+                            className="text-rose-600 hover:text-rose-700 font-bold transition-colors cursor-pointer text-[10px]"
+                          >
+                            [REVOKE ACCESS]
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 italic text-[10px]">[DEACTIVATED]</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PROVIDER KEY VAULT (BYOK) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8 border-t border-slate-200/80 pt-8">
+          
+          <div className="flex flex-col gap-4">
+            <h3 className="text-sm font-bold text-[#121118] uppercase tracking-wide font-mono flex items-center gap-1.5">
+              <Icons.Wallet /> Provider API Key Vault (BYOK)
+            </h3>
+            <p className="text-xs text-slate-500 font-mono uppercase leading-relaxed">
+              Vault your direct provider developer keys. When your software agents connect in the background, our gateway will dynamically authorize, sign, and route queries using your custom keys—running autonomously even when the dashboard is closed.
+            </p>
+            <div className="bg-[#121118] text-slate-400 p-4 rounded-2xl border border-slate-800 text-[11px] font-mono leading-relaxed shadow-inner">
+              <span className="text-indigo-400 font-bold block mb-1.5">// BACKGROUND CONNECTION GUIDE</span>
+              To execute agent tasks in the background:
+              <ol className="list-decimal pl-4 mt-1 flex flex-col gap-1 text-[10px]">
+                <li>Paste and save your direct provider keys in the vault.</li>
+                <li>Configure your remote agent codebase with base URL: <code className="text-[#F1EFEA] font-bold">http://localhost:5001/v1</code></li>
+                <li>Pass your Universal-Cred key: <code className="text-[#F1EFEA] font-bold">ch_live_key_98765_...</code> as the bearer token.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex flex-col gap-5">
+            
+            {/* OpenAI Vault */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center text-[10px] font-mono font-bold uppercase tracking-wider">
+                <span className="text-slate-500">// OpenAI / ChatGPT Access Key</span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono ${openaiConnected 
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" 
+                  : "bg-slate-100 text-slate-400 border border-slate-200/50"}`}
+                >
+                  {openaiConnected ? "🟢 Vaulted" : "🔴 Offline"}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  placeholder={openaiConnected ? "••••••••••••••••••••••••••••••••" : "sk-proj-..."}
+                  value={vaultOpenAI}
+                  disabled={openaiConnected}
+                  onChange={(e) => setVaultOpenAI(e.target.value)}
+                  className="flex-grow bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 font-mono disabled:opacity-50"
+                />
+                {openaiConnected ? (
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("vault_openai");
+                      setVaultOpenAI("");
+                      setOpenaiConnected(false);
+                      alert("OpenAI API key removed from vault.");
+                    }}
+                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-mono text-[10px] font-bold px-3 py-2.5 rounded-xl border border-rose-200/50 transition-all cursor-pointer"
+                  >
+                    DISCONNECT
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!vaultOpenAI.trim()) return;
+                      localStorage.setItem("vault_openai", vaultOpenAI);
+                      setOpenaiConnected(true);
+                      alert("OpenAI key successfully vaulted locally!");
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[10px] font-bold px-3 py-2.5 rounded-xl shadow transition-all cursor-pointer"
+                  >
+                    CONNECT
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Anthropic Vault */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center text-[10px] font-mono font-bold uppercase tracking-wider">
+                <span className="text-slate-500">// Anthropic / Claude Access Key</span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono ${anthropicConnected 
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/50" 
+                  : "bg-slate-100 text-slate-400 border border-slate-200/50"}`}
+                >
+                  {anthropicConnected ? "🟢 Vaulted" : "🔴 Offline"}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  placeholder={anthropicConnected ? "••••••••••••••••••••••••••••••••" : "sk-ant-..."}
+                  value={vaultAnthropic}
+                  disabled={anthropicConnected}
+                  onChange={(e) => setVaultAnthropic(e.target.value)}
+                  className="flex-grow bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 font-mono disabled:opacity-50"
+                />
+                {anthropicConnected ? (
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("vault_anthropic");
+                      setVaultAnthropic("");
+                      setAnthropicConnected(false);
+                      alert("Anthropic API key removed from vault.");
+                    }}
+                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-mono text-[10px] font-bold px-3 py-2.5 rounded-xl border border-rose-200/50 transition-all cursor-pointer"
+                  >
+                    DISCONNECT
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!vaultAnthropic.trim()) return;
+                      localStorage.setItem("vault_anthropic", vaultAnthropic);
+                      setAnthropicConnected(true);
+                      alert("Anthropic key successfully vaulted locally!");
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[10px] font-bold px-3 py-2.5 rounded-xl shadow transition-all cursor-pointer"
+                  >
+                    CONNECT
+                  </button>
+                )}
+              </div>
+            </div>
+
+          </div>
+
         </div>
       </section>
 
@@ -1020,6 +1308,107 @@ response = client.chat.completions.create(
                 CONFIRM FUND
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* NEW AGENT API KEY MODAL */}
+      {showNewKeyModal && (
+        <div className="fixed inset-0 z-50 bg-[#121118]/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 max-w-sm w-full rounded-3xl overflow-hidden p-6 shadow-2xl relative">
+            <button
+              onClick={() => {
+                setShowNewKeyModal(false);
+                setNewlyCreatedKey(null);
+                setNewKeyName("");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-3 font-mono">
+              <Icons.Code />
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Generate Agent API Key</h2>
+            </div>
+
+            {newlyCreatedKey ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-xs text-slate-500 leading-relaxed font-mono uppercase">
+                  COPY THIS SECRET KEY NOW. FOR SECURITY REASONS, IT WILL NOT BE SHOWN AGAIN.
+                </p>
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3 shadow-inner">
+                  <span className="font-mono text-xs text-slate-800 break-all select-all font-bold">{newlyCreatedKey}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(newlyCreatedKey);
+                      alert("API Key copied to clipboard!");
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-mono text-[10px] font-bold px-2.5 py-1 rounded border border-indigo-200/50 cursor-pointer"
+                  >
+                    COPY
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowNewKeyModal(false);
+                    setNewlyCreatedKey(null);
+                    setNewKeyName("");
+                  }}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition-all font-mono"
+                >
+                  DONE
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newKeyName.trim()) return;
+                  const randomSegment = Math.random().toString(36).substring(2, 10);
+                  const generatedString = `ch_live_key_98765_${randomSegment}`;
+                  const newEntry = {
+                    id: Date.now(),
+                    name: newKeyName,
+                    key: generatedString,
+                    created: new Date().toISOString().split("T")[0] || "2026-06-12",
+                    status: "active"
+                  };
+                  setApiKeys(prev => [newEntry, ...prev]);
+                  setNewlyCreatedKey(generatedString);
+                }}
+                className="flex flex-col gap-4"
+              >
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed font-mono uppercase">
+                  ENTER A FRIENDLY LABEL TO IDENTIFY THIS KEY LOG IN YOUR SETTLEMENT PORTAL.
+                </p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. LangChain Agent Router..."
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 font-mono"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewKeyModal(false)}
+                    className="flex-grow py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 transition-all font-mono"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-grow py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition-all font-mono"
+                  >
+                    GENERATE
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

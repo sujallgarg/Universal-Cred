@@ -11,9 +11,16 @@ export const creditCheck = async (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  const userId = Number(userIdHeader);
+  let userIdStr = String(userIdHeader).trim();
+  // Parse dynamic API Key format: ch_live_key_<userId>_<suffix> or ch_dev_key_<userId>_<suffix>
+  const keyMatch = userIdStr.match(/^ch_(?:live|dev)_key_(\d+)(?:_.*)?$/);
+  if (keyMatch && keyMatch[1]) {
+    userIdStr = keyMatch[1];
+  }
+
+  const userId = Number(userIdStr);
   if (isNaN(userId)) {
-    res.status(400).json({ error: "x-user-id header must be a valid number" });
+    res.status(400).json({ error: "x-user-id header must be a valid number or authorized agent API key" });
     return;
   }
 
