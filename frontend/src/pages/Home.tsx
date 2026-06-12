@@ -69,10 +69,19 @@ export default function Home() {
   const [streamText, setStreamText] = useState("");
   const [systemLogs, setSystemLogs] = useState<{ time: string; type: string; msg: string }[]>([]);
   const [ledger, setLedger] = useState<any[]>([]);
-  const [showBlueprintLines, setShowBlueprintLines] = useState(true);
+  const showBlueprintLines = true;
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("50");
   const [activeTab, setActiveTab] = useState<"node" | "python">("node");
+
+  // --- Calculator & FAQ States ---
+  const [calcInputTokens, setCalcInputTokens] = useState<number>(500000);
+  const [calcOutputTokens, setCalcOutputTokens] = useState<number>(100000);
+  const [calcImages, setCalcImages] = useState<number>(15);
+  const [calcAudio, setCalcAudio] = useState<number>(120);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
 
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -351,7 +360,7 @@ response = client.chat.completions.create(
 
       {/* HEADER */}
       <header className="w-full max-w-[90%] mx-auto py-5 flex items-center justify-between border-b border-slate-200 relative z-20">
-        <div className="flex items-center gap-3">
+        <a href="#hero" className="flex items-center gap-3 hover:opacity-85 transition-opacity">
           <div className="w-8 h-8 rounded bg-[#121118] text-[#F1EFEA] flex items-center justify-center font-bold font-mono tracking-tighter shadow">
              U    
           </div>
@@ -360,20 +369,18 @@ response = client.chat.completions.create(
               <span className="font-mono font-black tracking-widest text-sm text-[#121118]">UNIVERSAL-CRED</span>
             </div>
           </div>
-        </div>
+        </a>
+
+        {/* Navigation Menu */}
+        <nav className="hidden lg:flex items-center gap-6 text-[10px] font-mono font-bold text-slate-500">
+          <a href="#playground" className="hover:text-[#121118] transition-colors">// Sandbox</a>
+          <a href="#how-it-works" className="hover:text-[#121118] transition-colors">// Architecture</a>
+          <a href="#cost-estimator" className="hover:text-[#121118] transition-colors">// Cost Calculator</a>
+          <a href="#about" className="hover:text-[#121118] transition-colors">// About</a>
+          <a href="#faq" className="hover:text-[#121118] transition-colors">// F.A.Q</a>
+        </nav>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowBlueprintLines(!showBlueprintLines)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-semibold flex items-center gap-1.5 transition-all ${showBlueprintLines
-              ? "bg-[#121118] text-[#F1EFEA] border-[#121118]"
-              : "bg-white/60 hover:bg-white text-slate-700 border-slate-200"
-            }`}
-          >
-            <Icons.GridToggle />
-            <span className="hidden sm:inline cursor-pointer">Blueprint Grid</span>
-          </button>
-
           {/* Universal Wallet Balance Widget */}
           <div className="bg-white/80 border border-slate-200 rounded-xl py-1.5 px-3.5 flex items-center gap-3 shadow-sm">
             <div className="flex flex-col items-end">
@@ -418,7 +425,7 @@ response = client.chat.completions.create(
       </section>
 
       {/* SPLIT PANEL SECTION */}
-      <section className="w-full max-w-[90%] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 py-12 relative z-20">
+      <section id="playground" className="w-full max-w-[90%] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 py-12 relative z-20">
 
         {/* LEFT COLUMN: THE BLUEPRINT MARKETING & PERSISTENT LEDGER LOGS */}
         <div className="lg:col-span-5 flex flex-col justify-start pr-0 lg:pr-6 gap-6">
@@ -684,6 +691,266 @@ response = client.chat.completions.create(
         </div>
       </section>
 
+      {/* SECTION 1: HOW IT WORKS */}
+      <section id="how-it-works" className="w-full max-w-[90%] mx-auto py-16 border-t border-slate-200 relative z-20">
+        <div className="flex flex-col gap-4 mb-10">
+          <span className="text-xs font-mono text-indigo-600 font-bold uppercase tracking-wider">// DYNAMIC LIFECYCLE</span>
+          <h2 className="text-3xl font-extrabold tracking-tight uppercase text-[#121118]">
+            HOW IT WORKS: THE TRANSACTION PIPELINE
+          </h2>
+          <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
+            Every token, generation, and voice segment flows through our high-performance clearinghouse routing layer.
+            Here is what happens from execution to settlement.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[
+            {
+              step: "01",
+              title: "Proxy Ingress",
+              desc: "Your agent fires a request using our base URL and universal API key, routing calls via a unified gateway.",
+              badge: "HTTP / POST"
+            },
+            {
+              step: "02",
+              title: "Redis Guardrail",
+              desc: "The system intercepts the call to authenticate user credits and locks balance constraints in <0.8ms.",
+              badge: "ATOMIC CACHE"
+            },
+            {
+              step: "03",
+              title: "SSE Stream Forwarding",
+              desc: "Payload is securely proxied to OpenAI/Anthropic/Gemini, streaming completed tokens back to your agent.",
+              badge: "STREAMS / CHUNKS"
+            },
+            {
+              step: "04",
+              title: "Postgres Settlement",
+              desc: "A background Node-Redis worker asynchronously reconciles token usage and commits audit logs to PostgreSQL.",
+              badge: "SECURE LEDGER"
+            }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white/60 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm relative group hover:border-indigo-600 transition-all">
+              <div className="flex justify-between items-start mb-4">
+                <span className="font-mono text-3xl font-black text-slate-300 group-hover:text-indigo-600 transition-colors">{item.step}</span>
+                <span className="text-[9px] font-mono font-bold bg-slate-50/50 text-slate-500 border border-slate-200/60 px-1.5 py-0.5 rounded uppercase">{item.badge}</span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-[#121118] uppercase tracking-wide font-mono mb-2">{item.title}</h4>
+                <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SECTION 2: COST ESTIMATOR */}
+      <section id="cost-estimator" className="w-full max-w-[90%] mx-auto py-16 border-t border-slate-200 relative z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          <div className="lg:col-span-5 flex flex-col justify-center pr-0 lg:pr-6 gap-5">
+            <span className="text-xs font-mono text-indigo-600 font-bold uppercase tracking-wider">// COMPUTE CALCULATOR</span>
+            <h2 className="text-3xl font-extrabold tracking-tight uppercase leading-tight text-[#121118]">
+              ESTIMATE YOUR MULTI-MODEL BILLING
+            </h2>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Input your expected transaction volumes across text, audio, and images.
+              See the exact micro-credits consumed based on our standard rate multiplier matrices.
+            </p>
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-xs text-indigo-950 font-mono leading-relaxed">
+              <span className="font-bold text-indigo-700 block mb-1">PRO-TIP:</span>
+              Rates are atomically mapped back to provider base models with no hidden markup. You pay exactly what the compute costs.
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-3xl p-6 shadow-xl flex flex-col gap-5">
+            <h3 className="text-sm font-bold text-[#121118] uppercase tracking-wide font-mono flex items-center gap-1.5">
+              <Icons.Sparkles /> Dynamic Estimator
+            </h3>
+
+            {/* Sliders */}
+            <div className="flex flex-col gap-4">
+              {/* LLM Input */}
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-baseline font-mono text-xs">
+                  <span className="text-slate-500 uppercase font-bold">GPT-4o Input Tokens</span>
+                  <span className="text-slate-800 font-bold">{(calcInputTokens / 1000).toFixed(0)}k Tokens</span>
+                </div>
+                <input
+                  type="range"
+                  min="10000"
+                  max="5000000"
+                  step="10000"
+                  value={calcInputTokens}
+                  onChange={(e) => setCalcInputTokens(Number(e.target.value))}
+                  className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* LLM Output */}
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-baseline font-mono text-xs">
+                  <span className="text-slate-500 uppercase font-bold">GPT-4o Output Tokens</span>
+                  <span className="text-slate-800 font-bold">{(calcOutputTokens / 1000).toFixed(0)}k Tokens</span>
+                </div>
+                <input
+                  type="range"
+                  min="5000"
+                  max="1000000"
+                  step="5000"
+                  value={calcOutputTokens}
+                  onChange={(e) => setCalcOutputTokens(Number(e.target.value))}
+                  className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* Flux Images */}
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-baseline font-mono text-xs">
+                  <span className="text-slate-500 uppercase font-bold">Flux.1 Dev Image Generations</span>
+                  <span className="text-slate-800 font-bold">{calcImages} Generations</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="500"
+                  step="1"
+                  value={calcImages}
+                  onChange={(e) => setCalcImages(Number(e.target.value))}
+                  className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {/* ElevenLabs audio */}
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-baseline font-mono text-xs">
+                  <span className="text-slate-500 uppercase font-bold">ElevenLabs Audio Seconds</span>
+                  <span className="text-slate-800 font-bold">{calcAudio} Seconds</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="3600"
+                  step="10"
+                  value={calcAudio}
+                  onChange={(e) => setCalcAudio(Number(e.target.value))}
+                  className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Calculations Result */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-2 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex flex-col items-center sm:items-start">
+                <span className="text-[9px] text-slate-400 font-mono uppercase font-bold">ESTIMATED CORES</span>
+                <span className="font-mono text-lg font-black text-indigo-600">
+                  {((calcInputTokens * 5) + (calcOutputTokens * 15) + (calcImages * 30000) + (calcAudio * 2000)).toLocaleString()}
+                </span>
+              </div>
+              <div className="w-px h-8 bg-slate-200 hidden sm:block" />
+              <div className="flex flex-col items-center sm:items-start font-mono">
+                <span className="text-[9px] text-slate-400 uppercase font-bold">ESTIMATED TOTAL</span>
+                <span className="text-lg font-black text-slate-900">
+                  ${(((calcInputTokens * 5) + (calcOutputTokens * 15) + (calcImages * 30000) + (calcAudio * 2000)) / 1000000).toFixed(4)} <span className="text-xs text-slate-400 font-bold">USD</span>
+                </span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: ABOUT */}
+      <section id="about" className="w-full max-w-[90%] mx-auto py-16 border-t border-slate-200 relative z-20">
+        <div className="flex flex-col gap-4 mb-10 text-center items-center">
+          <span className="text-xs font-mono text-indigo-600 font-bold uppercase tracking-wider">// CLEARINGHOUSE STATEMENT</span>
+          <h2 className="text-3xl font-extrabold tracking-tight uppercase text-[#121118] max-w-2xl leading-tight">
+            WHY WE BUILT THE UNIVERSAL SETTLEMENT LAYER
+          </h2>
+          <p className="text-sm text-slate-600 max-w-xl leading-relaxed">
+            Multi-model compute scaling demands a financial infrastructure that moves as fast as inference engines.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+          <div className="bg-rose-50/40 border border-rose-100 rounded-3xl p-6 flex flex-col gap-4">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center font-bold text-rose-600 font-mono text-sm">
+              [❌]
+            </div>
+            <h4 className="text-sm font-bold uppercase font-mono text-rose-950 tracking-wide">The Compute Dilemma</h4>
+            <p className="text-xs text-rose-900/80 leading-relaxed font-mono uppercase">
+              DECENTRALIZED KEY COMPLEXITY / BALANCE LOCKUPS
+            </p>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              When software agents execute multi-provider workflows (OpenAI for logic, ElevenLabs for voice, Flux for images), developer teams are forced to rotation-manage 10+ secret keys, maintain minimum account deposits across multiple platforms, and build complex in-house telemetry loops just to audit aggregate consumption metrics.
+            </p>
+          </div>
+
+          <div className="bg-emerald-50/40 border border-emerald-100 rounded-3xl p-6 flex flex-col gap-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center font-bold text-emerald-600 font-mono text-sm">
+              [✓]
+            </div>
+            <h4 className="text-sm font-bold uppercase font-mono text-emerald-950 tracking-wide">The Universal Solution</h4>
+            <p className="text-xs text-emerald-900/80 leading-relaxed font-mono uppercase">
+              SINGLE WALLET SETTLEMENT / ZERO overhead
+            </p>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Universal-Cred aggregates this. Your client interacts with our high-speed endpoint using a single universal token. Credits are audited atomically in cache and synchronized to PostgreSQL. In-flight API queries are dynamically completed with zero key rotation fatigue or capital lockups.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: FAQ */}
+      <section id="faq" className="w-full max-w-[90%] mx-auto py-16 border-t border-slate-200 relative z-20">
+        <div className="flex flex-col gap-4 mb-10">
+          <span className="text-xs font-mono text-indigo-600 font-bold uppercase tracking-wider">// COMMON QUESTIONS</span>
+          <h2 className="text-3xl font-extrabold tracking-tight uppercase text-[#121118]">
+            FREQUENTLY ASKED QUESTIONS
+          </h2>
+        </div>
+
+        <div className="flex flex-col gap-3 max-w-3xl">
+          {[
+            {
+              q: "How does Universal-Cred manage multiple provider APIs under the hood?",
+              a: "Our gateway acts as an intelligent proxy. When you send requests to our base URL, the middleware intercepts the call, validates your Universal Core wallet balance in Redis, streams the provider's response, aggregates raw output counts, and charges you atomically."
+            },
+            {
+              q: "What is the settlement latency overhead?",
+              a: "Less than 0.8ms. By using atomic Redis DECR checks in the guardrail layer, we authorize compute requests instantly before forwarding them to OpenAI, Anthropic, or Gemini. The persistent PostgreSQL ledger sync is handled asynchronously off the main request thread."
+            },
+            {
+              q: "Can I self-host this Clearinghouse platform?",
+              a: "Yes. The codebase uses standard PostgreSQL and Redis configurations. By customizing the environment variables, you can run the unified server for your private development teams."
+            },
+            {
+              q: "What happens if a stream request fails mid-way?",
+              a: "The billing middleware only charges for the tokens successfully received and processed. If the SSE pipeline disconnects or aborts, we run an adjustment calculation against the ledger database."
+            }
+          ].map((item, idx) => {
+            const isOpen = openFaqIndex === idx;
+            return (
+              <div key={idx} className="bg-white/60 border border-slate-200 rounded-2xl overflow-hidden shadow-sm transition-all">
+                <button
+                  onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                  className="w-full flex justify-between items-center p-5 text-left font-mono font-bold text-xs uppercase tracking-wide text-slate-800 hover:bg-slate-50 transition-colors"
+                >
+                  <span>{item.q}</span>
+                  <span className={`text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>▼</span>
+                </button>
+                {isOpen && (
+                  <div className="p-5 border-t border-slate-200/50 bg-[#FBFBFA]/60 text-slate-600 text-xs leading-relaxed">
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* TOP-UP MODAL */}
       {showTopUpModal && (
         <div className="fixed inset-0 z-50 bg-[#121118]/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -758,8 +1025,88 @@ response = client.chat.completions.create(
       )}
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-200 py-6 mt-auto bg-white/40 text-center text-[10px] text-slate-400 font-mono tracking-widest uppercase">
-        ⚡ [SETTLEMENT BOUNDARY PLATFORM LEVEL] // ARCHITECTED FOR MULTI-PROVIDER AGENT ORCHESTRATORS // © 2026 CLEARINGHOUSE LABS
+      <footer className="border-t border-slate-200 bg-white/60 pt-16 pb-8 relative z-20">
+        <div className="w-full max-w-[90%] mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 mb-12">
+          
+          {/* Logo & Description */}
+          <div className="md:col-span-4 flex flex-col gap-4">
+            <a href="#hero" className="flex items-center gap-3 hover:opacity-85 transition-opacity w-fit">
+              <div className="w-8 h-8 rounded bg-[#121118] text-[#F1EFEA] flex items-center justify-center font-bold font-mono tracking-tighter shadow">
+                 U    
+              </div>
+              <span className="font-mono font-black tracking-widest text-sm text-[#121118]">UNIVERSAL-CRED</span>
+            </a>
+            <p className="text-xs text-slate-500 font-mono uppercase leading-relaxed max-w-sm">
+              THE UNIFIED SETTLEMENT LAYER FOR AGENT COMPUTING. ROUTE AND AUDIT COMPUTE WITH SUB-MILLISECOND SETTLEMENT GUARANTEES.
+            </p>
+            <div className="flex items-center gap-2 mt-2 font-mono text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2.5 py-1 rounded-full w-fit">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              ALL SYSTEMS OPERATIONAL
+            </div>
+          </div>
+
+          {/* Links 1 */}
+          <div className="md:col-span-2 flex flex-col gap-3">
+            <h5 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">// PRODUCT</h5>
+            <ul className="flex flex-col gap-2 text-xs font-semibold text-slate-600 font-mono">
+              <li><a href="#playground" className="hover:text-indigo-600 transition-colors">SANDBOX</a></li>
+              <li><a href="#how-it-works" className="hover:text-indigo-600 transition-colors">ARCHITECTURE</a></li>
+              <li><a href="#cost-estimator" className="hover:text-indigo-600 transition-colors">ESTIMATOR</a></li>
+            </ul>
+          </div>
+
+          {/* Links 2 */}
+          <div className="md:col-span-2 flex flex-col gap-3">
+            <h5 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">// DEVELOPERS</h5>
+            <ul className="flex flex-col gap-2 text-xs font-semibold text-slate-600 font-mono">
+              <li><a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition-colors">GITHUB API</a></li>
+              <li><a href="#playground" className="hover:text-indigo-600 transition-colors">API REFS</a></li>
+              <li><a href="#playground" className="hover:text-indigo-600 transition-colors">STATUS MONITOR</a></li>
+            </ul>
+          </div>
+
+          {/* Newsletter Form */}
+          <div className="md:col-span-4 flex flex-col gap-4">
+            <h5 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">// NEWSLETTER</h5>
+            <p className="text-xs text-slate-500 font-mono uppercase leading-relaxed">
+              SUBSCRIBE TO RECEIVE AGENTIC COMPUTATION INFRASTRUCTURE UPDATES.
+            </p>
+            {newsletterSubscribed ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-emerald-800 font-mono font-bold">
+                ✓ YOU ARE NOW IN THE LOOP.
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (newsletterEmail) setNewsletterSubscribed(true);
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  type="email"
+                  required
+                  placeholder="dev@clearinghouse.io"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  className="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-600 font-mono"
+                />
+                <button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold px-4 py-2 rounded-xl transition-all shadow cursor-pointer"
+                >
+                  JOIN
+                </button>
+              </form>
+            )}
+          </div>
+
+        </div>
+
+        <div className="w-full max-w-[90%] mx-auto pt-8 border-t border-slate-200/50 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-slate-400 font-mono tracking-wider uppercase">
+          <span>© 2026 CLEARINGHOUSE LABS INC.</span>
+          <span>⚡ DESIGNED FOR MULTI-PROVIDER AGENT ORCHESTRATORS</span>
+        </div>
       </footer>
 
     </div>
